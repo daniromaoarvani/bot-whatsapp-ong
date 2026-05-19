@@ -1,34 +1,50 @@
 const express = require('express');
 const qrcode = require('qrcode-terminal');
-const { default: makeWASocket, useMultiFileAuthState } = require('@whiskeysockets/baileys');
+
+const {
+    default: makeWASocket,
+    useMultiFileAuthState,
+    DisconnectReason
+} = require('@whiskeysockets/baileys');
 
 const app = express();
+
 app.get('/', (req, res) => res.send('Bot ON'));
 
 async function startBot() {
     const { state, saveCreds } = await useMultiFileAuthState('./auth');
 
     const sock = makeWASocket({
-        auth: state
-    });
+    auth: state,
+    printQRInTerminal: true
+});
 
     sock.ev.on('creds.update', saveCreds);
 
-    sock.ev.on('connection.update', (update) => {
-    const { connection, qr } = update;
+    sock.ev.on("connection.update", async ({ connection, lastDisconnect, qr }) => {
 
     if (qr) {
-        console.log('ESCANEIE O QR:');
-        console.log(qr);
+        console.log("📱 Escaneie o QR:");
+        qrcode.generate(qr, { small: true });
     }
 
-    if (connection === 'open') {
-        console.log('Bot conectado!');
+    if (connection === "open") {
+        console.log("✅ Bot conectado ao WhatsApp!");
     }
+
+    if (connection === "close") {
+        console.log("❌ conexão fechada");
+
+        setTimeout(() => {
+            startBot();
+        }, 3000);
+    }
+
 });
 
     sock.ev.on('messages.upsert', async ({ messages }) => {
         const msg = messages[0];
+        if (msg.key.fromMe) return;
 
         if (!msg.message) return;
 
