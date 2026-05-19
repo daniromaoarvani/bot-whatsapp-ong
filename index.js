@@ -1,80 +1,117 @@
-console.log("INICIOU O ARQUIVO");
-
 const express = require('express');
-const { Client, LocalAuth } = require('whatsapp-web.js');
 const qrcode = require('qrcode-terminal');
+const { default: makeWASocket, useMultiFileAuthState } = require('@whiskeysockets/baileys');
 
 const app = express();
+app.get('/', (req, res) => res.send('Bot ON'));
 
-const client = new Client({
-    puppeteer: {
-        headless: true,
-        args: [
-            '--no-sandbox',
-            '--disable-setuid-sandbox',
-            '--disable-dev-shm-usage'
-        ],
-        browserWSEndpoint: undefined
-    }
-});
+async function startBot() {
+    const { state, saveCreds } = await useMultiFileAuthState('./auth');
 
-client.on('qr', (qr) => {
-    console.log('Escaneie o QR:');
-    qrcode.generate(qr, { small: true });
-});
+    const sock = makeWASocket({
+        auth: state,
+        printQRInTerminal: true
+    });
 
-client.on('ready', () => {
-    console.log('Bot conectado!');
-});
+    sock.ev.on('creds.update', saveCreds);
 
-client.on('message', (msg) => {
-    const texto = msg.body.toLowerCase();
+    sock.ev.on('connection.update', (update) => {
+        const { connection, qr } = update;
 
-    console.log('Recebi:', texto);
+        if (qr) {
+            console.log('Escaneie o QR:');
+            qrcode.generate(qr, { small: true });
+        }
 
-    // menu principal
-    if (
-        texto.includes('oi') ||
-        texto.includes('olá') ||
-        texto.includes('ajudar') ||
-        texto === 'menu'
-    ) {
-        return msg.reply(
-"Olá! 😊\n\nSou o assistente da ONG.\n\nComo você quer ajudar?\n\n1 - Doação via PIX\n2 - Doar alimentos/roupas\n3 - Ser voluntário\n\nDigite 'menu' a qualquer momento para voltar aqui."
-        );
-    }
+        if (connection === 'open') {
+            console.log('Bot conectado!');
+        }
+    });
 
-    if (texto === '1') {
-        return msg.reply(
-"Perfeito! 🙌\n\n💳 Chave PIX:\nsua-chave@pix.com\n\nMuito obrigado ❤️\n\nDigite 'menu' para voltar."
-        );
-    }
+    sock.ev.on('messages.upsert', async ({ messages }) => {
+        const msg = messages[0];
 
-    if (texto === '2') {
-        return msg.reply(
-"Você pode doar:\n\n🥫 Alimentos\n👕 Roupas\n\n📍 Endereço:\n(coloque aqui)\n\nDigite 'menu' para voltar."
-        );
-    }
+        if (!msg.message) return;
 
-    if (texto === '3') {
-        return msg.reply(
-"Ótimo! 🤝\n\nDeixe seu nome e telefone que entraremos em contato.\n\nDigite 'menu' para voltar."
-        );
-    }
+        const texto =
+            msg.message.conversation ||
+            msg.message.extendedTextMessage?.text;
 
-    return msg.reply(
-"Não entendi 😅\n\nDigite 'menu' para ver as opções."
-    );
-});
+        if (!texto) return;
 
-app.get('/', (req, res) => {
-    res.send('OK');
-});
+        const textoLower = texto.toLowerCase();
 
-const PORT = process.env.PORT || 3000;
+        console.log('Recebi:', textoLower);
 
-app.listen(PORT, () => {
-    console.log('Servidor rodando na porta ' + PORT);
-});
+        const jid = msg.key.remoteJid;
 
-client.initialize();
+        // MENU
+        if (
+            textoLower.includes('oi') ||
+            textoLower.includes('olá') ||
+            textoLower.includes('ajudar') ||
+            textoLower === 'menu'
+        ) {
+            await sock.sendMessage(jid, {
+                text:
+`Olá! 😊
+
+Sou o assistente da ONG.
+
+Como você quer ajudar?
+
+1 - Doação via PIX
+2 - Doar alimentos/roupas
+3 - Ser voluntário
+
+Digite 'menu' a qualquer momento para voltar aqui.`
+            });
+            return;
+        }
+
+        if (textoLower === '1') {
+            await sock.sendMessage(jid, {
+                text:
+`Perfeito! 🙌
+
+💳 Chave PIX:
+sua-chave@pix.com
+
+Muito obrigado ❤️`
+            });
+            return;
+        }
+
+        if (textoLower === '2') {
+            await sock.sendMessage(jid, {
+                text:
+`Você pode doar:
+
+🥫 Alimentos
+👕 Roupas
+
+📍 Endereço:
+(coloque aqui)`
+            });
+            return;
+        }
+
+        if (textoLower === '3') {
+            await sock.sendMessage(jid, {
+                text:
+`Ótimo! 🤝
+
+Deixe seu nome e telefone que entraremos em contato.`
+            });
+            return;
+        }
+
+        await sock.sendMessage(jid, {
+            text: "Não entendi 😅\nDigite 'menu' para ver as opções."
+        });
+    });
+}
+
+startBot();
+
+app.listen(3000, () => console.log('Servidor rodando'));
