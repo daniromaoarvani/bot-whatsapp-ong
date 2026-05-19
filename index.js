@@ -9,7 +9,6 @@ const app = express();
 const client = new Client({
     puppeteer: {
         headless: true,
-        executablePath: '/usr/bin/google-chrome-stable',
         args: ['--no-sandbox', '--disable-setuid-sandbox']
     }
 });
@@ -67,8 +66,10 @@ app.get('/', (req, res) => {
     res.send('OK');
 });
 
-app.listen(3000, () => {
-    console.log('Servidor rodando!');
+const PORT = process.env.PORT || 3000;
+
+app.listen(PORT, () => {
+    console.log('Servidor rodando na porta ' + PORT);
 });
 
 client.initialize();
