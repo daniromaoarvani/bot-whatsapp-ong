@@ -9,12 +9,12 @@ const app = express();
 const client = new Client({
     puppeteer: {
         headless: true,
-        executablePath: '/usr/bin/google-chrome-stable',
         args: [
             '--no-sandbox',
             '--disable-setuid-sandbox',
             '--disable-dev-shm-usage'
-        ]
+        ],
+        browserWSEndpoint: undefined
     }
 });
 
