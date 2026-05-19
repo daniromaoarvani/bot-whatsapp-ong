@@ -9,24 +9,23 @@ async function startBot() {
     const { state, saveCreds } = await useMultiFileAuthState('./auth');
 
     const sock = makeWASocket({
-        auth: state,
-        printQRInTerminal: true
+        auth: state
     });
 
     sock.ev.on('creds.update', saveCreds);
 
     sock.ev.on('connection.update', (update) => {
-        const { connection, qr } = update;
+    const { connection, qr } = update;
 
-        if (qr) {
-            console.log('Escaneie o QR:');
-            qrcode.generate(qr, { small: true });
-        }
+    if (qr) {
+        console.log('ESCANEIE O QR:');
+        console.log(qr);
+    }
 
-        if (connection === 'open') {
-            console.log('Bot conectado!');
-        }
-    });
+    if (connection === 'open') {
+        console.log('Bot conectado!');
+    }
+});
 
     sock.ev.on('messages.upsert', async ({ messages }) => {
         const msg = messages[0];
