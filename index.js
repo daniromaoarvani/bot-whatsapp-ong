@@ -1,10 +1,10 @@
 const express = require('express');
-
 const qrcode = require('qrcode-terminal');
 
 const {
     default: makeWASocket,
-    useMultiFileAuthState
+    useMultiFileAuthState,
+    DisconnectReason
 } = require('@whiskeysockets/baileys');
 
 const app = express();
@@ -15,33 +15,38 @@ async function startBot() {
     const { state, saveCreds } = await useMultiFileAuthState('./auth');
 
     const sock = makeWASocket({
-        auth: state,
-        printQRInTerminal: false
-    });
+    auth: state,
+    printQRInTerminal: true
+});
 
     sock.ev.on('creds.update', saveCreds);
 
-    sock.ev.on('connection.update', ({ connection, qr }) => {
+    sock.ev.on("connection.update", async ({ connection, lastDisconnect, qr }) => {
 
     if (qr) {
-        console.log("📱 Escaneie este QR no celular:");
-
-        const link = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(qr)}`;
-
-        console.log("\nABRA ESSE LINK:\n" + link + "\n");
+        console.log("📱 Escaneie o QR:");
+        qrcode.generate(qr, { small: true });
     }
 
     if (connection === "open") {
-        console.log("✅ Conectado!");
+        console.log("✅ Bot conectado ao WhatsApp!");
+    }
+
+    if (connection === "close") {
+        console.log("❌ conexão fechada");
+
+        setTimeout(() => {
+            startBot();
+        }, 3000);
     }
 
 });
 
     sock.ev.on('messages.upsert', async ({ messages }) => {
         const msg = messages[0];
+        if (msg.key.fromMe) return;
 
         if (!msg.message) return;
-        if (msg.key.fromMe) return;
 
         const texto =
             msg.message.conversation ||
@@ -50,10 +55,12 @@ async function startBot() {
         if (!texto) return;
 
         const textoLower = texto.toLowerCase();
-        const jid = msg.key.remoteJid;
 
         console.log('Recebi:', textoLower);
 
+        const jid = msg.key.remoteJid;
+
+        // MENU
         if (
             textoLower.includes('oi') ||
             textoLower.includes('olá') ||
@@ -70,7 +77,9 @@ Como você quer ajudar?
 
 1 - Doação via PIX
 2 - Doar alimentos/roupas
-3 - Ser voluntário`
+3 - Ser voluntário
+
+Digite 'menu' a qualquer momento para voltar aqui.`
             });
             return;
         }
@@ -78,8 +87,12 @@ Como você quer ajudar?
         if (textoLower === '1') {
             await sock.sendMessage(jid, {
                 text:
-`💳 PIX:
-sua-chave@pix.com`
+`Perfeito! 🙌
+
+💳 Chave PIX:
+sua-chave@pix.com
+
+Muito obrigado ❤️`
             });
             return;
         }
@@ -87,10 +100,13 @@ sua-chave@pix.com`
         if (textoLower === '2') {
             await sock.sendMessage(jid, {
                 text:
-`🥫 Alimentos
+`Você pode doar:
+
+🥫 Alimentos
 👕 Roupas
 
-📍 Endereço: (coloque aqui)`
+📍 Endereço:
+(coloque aqui)`
             });
             return;
         }
@@ -98,18 +114,19 @@ sua-chave@pix.com`
         if (textoLower === '3') {
             await sock.sendMessage(jid, {
                 text:
-`🤝 Envie seu nome e telefone para contato.`
+`Ótimo! 🤝
+
+Deixe seu nome e telefone que entraremos em contato.`
             });
             return;
         }
 
         await sock.sendMessage(jid, {
-            text: "Digite 'menu' para ver as opções."
+            text: "Não entendi 😅\nDigite 'menu' para ver as opções."
         });
     });
 }
 
 startBot();
 
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log('Servidor rodando na porta ' + PORT));
+app.listen(3000, () => console.log('Servidor rodando'));
