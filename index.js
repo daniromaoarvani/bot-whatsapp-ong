@@ -23,23 +23,19 @@ async function startBot() {
 
     sock.ev.on('connection.update', ({ connection, qr }) => {
 
-        if (qr) {
-            console.log('📱 Escaneie o QR abaixo:');
-            qrcode.generate(qr, { small: true });
-        }
+    if (qr) {
+        console.log("📱 Escaneie este QR no celular:");
 
-        if (connection === 'open') {
-            console.log('✅ Conectado ao WhatsApp!');
-        }
+        const link = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(qr)}`;
 
-        if (connection === 'close') {
-            console.log('❌ Conexão fechada. Reiniciando...');
+        console.log("\nABRA ESSE LINK:\n" + link + "\n");
+    }
 
-            setTimeout(() => {
-                startBot();
-            }, 3000);
-        }
-    });
+    if (connection === "open") {
+        console.log("✅ Conectado!");
+    }
+
+});
 
     sock.ev.on('messages.upsert', async ({ messages }) => {
         const msg = messages[0];
