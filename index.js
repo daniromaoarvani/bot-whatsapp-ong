@@ -1,6 +1,4 @@
 const express = require('express');
-const qrcode = require('qrcode-terminal');
-
 const {
     default: makeWASocket,
     useMultiFileAuthState,
@@ -8,6 +6,7 @@ const {
 } = require('@whiskeysockets/baileys');
 
 const app = express();
+const PORT = process.env.PORT || 3000;
 
 app.get('/', (req, res) => res.send('Bot ON'));
 
@@ -16,128 +15,96 @@ async function startBot() {
 
     const sock = makeWASocket({
         auth: state,
-        printQRInTerminal: false 
+        printQRInTerminal: false // Desligado para usar o código de pareamento
     });
 
+    // --- LÓGICA PARA TELEFONE FIXO E PAREAMENTO POR CÓDIGO ---
     if (!sock.authState.creds.registered) {
-        const phoneNumber = "551124432955"; 
+        // DIGITE SEU NÚMERO FIXO ABAIXO: Ex: 55 + DDD + NUMERO
+        const meuNumero = "551133445566"; 
+
         setTimeout(async () => {
-            const code = await sock.requestPairingCode(phoneNumber);
-            console.log(`✅ CÓDIGO DE PAREAMENTO: ${code}`);
+            try {
+                const code = await sock.requestPairingCode(meuNumero);
+                console.log(`\n\n=========================================`);
+                console.log(`✅ SEU CÓDIGO DE ACESSO É: ${code}`);
+                console.log(`=========================================\n\n`);
+            } catch (error) {
+                console.log("Erro ao pedir código:", error);
+            }
         }, 5000);
     }
 
     sock.ev.on('creds.update', saveCreds);
 
-    sock.ev.on("connection.update", async ({ connection, lastDisconnect, qr }) => {
+    sock.ev.on("connection.update", async ({ connection }) => {
+        if (connection === "open") {
+            console.log("✅ Bot conectado ao WhatsApp!");
+        }
 
-    if (qr) {
-        console.log("📱 Escaneie o QR:");
-        qrcode.generate(qr, { small: true });
-    }
-
-    if (connection === "open") {
-        console.log("✅ Bot conectado ao WhatsApp!");
-    }
-
-    if (connection === "close") {
-        console.log("❌ conexão fechada");
-
-        setTimeout(() => {
-            startBot();
-        }, 3000);
-    }
-
-});
+        if (connection === "close") {
+            console.log("❌ Conexão fechada, tentando reconectar...");
+            setTimeout(() => startBot(), 3000);
+        }
+    });
 
     sock.ev.on('messages.upsert', async ({ messages }) => {
         const msg = messages[0];
-        if (msg.key.fromMe) return;
+        if (msg.key.fromMe || !msg.message) return;
 
-        if (!msg.message) return;
-
-        const texto =
+        const texto = (
             msg.message.conversation ||
-            msg.message.extendedTextMessage?.text;
-
-        if (!texto) return;
-
-        const textoLower = texto.toLowerCase();
-
-        console.log('Recebi:', textoLower);
+            msg.message.extendedTextMessage?.text || 
+            ""
+        ).toLowerCase();
 
         const jid = msg.key.remoteJid;
 
-        // MENU
+        console.log('Mensagem recebida:', texto);
+
+        // --- MENU E RESPOSTAS DA ONG ---
         if (
-            textoLower.includes('oi') ||
-            textoLower.includes('olá') ||
-            textoLower.includes('ajudar') ||
-            textoLower === 'menu'
+            texto.includes('oi') ||
+            texto.includes('olá') ||
+            texto.includes('ajudar') ||
+            texto === 'menu'
         ) {
             await sock.sendMessage(jid, {
-                text:
-`Olá! 😊
-
-Sou o assistente da ONG.
-
-Como você quer ajudar?
-
-1 - Doação via PIX
-2 - Doar alimentos/roupas
-3 - Ser voluntário
-
-Digite 'menu' a qualquer momento para voltar aqui.`
+                text: `Olá! 😊\n\nSou o assistente da ONG.\n\nComo você quer ajudar?\n\n1 - Doação via PIX\n2 - Doar alimentos/roupas\n3 - Ser voluntário\n\nDigite 'menu' a qualquer momento para voltar aqui.`
             });
             return;
         }
 
-        if (textoLower === '1') {
+        if (texto === '1') {
             await sock.sendMessage(jid, {
-                text:
-`Perfeito! 🙌
-
-💳 Chave PIX:
-sua-chave@pix.com
-
-Muito obrigado ❤️`
+                text: `Perfeito! 🙌\n\n💳 Chave PIX:\nsua-chave@pix.com\n\nMuito obrigado ❤️`
             });
             return;
         }
 
-        if (textoLower === '2') {
+        if (texto === '2') {
             await sock.sendMessage(jid, {
-                text:
-`Você pode doar:
-
-🥫 Alimentos
-👕 Roupas
-
-📍 Endereço:
-(coloque aqui)`
+                text: `Você pode doar:\n\n🥫 Alimentos\n👕 Roupas\n\n📍 Endereço:\n(coloque aqui seu endereço real)`
             });
             return;
         }
 
-        if (textoLower === '3') {
+        if (texto === '3') {
             await sock.sendMessage(jid, {
-                text:
-`Ótimo! 🤝
-
-Deixe seu nome e telefone que entraremos em contato.`
+                text: `Ótimo! 🤝\n\nDeixe seu nome e telefone que entraremos em contato em breve.`
             });
             return;
         }
 
+        // Resposta padrão caso não entenda
         await sock.sendMessage(jid, {
-            text: "Não entendi 😅\nDigite 'menu' para ver as opções."
+            text: "Não entendi 😅\nDigite 'menu' para ver as opções disponíveis."
         });
     });
 }
 
 startBot();
-const PORT = process.env.PORT || 3000; 
 
 app.listen(PORT, '0.0.0.0', () => {
-    console.log(`Servidor rodando na porta ${PORT}`);
+    console.log(`🚀 Servidor rodando na porta ${PORT}`);
 });
