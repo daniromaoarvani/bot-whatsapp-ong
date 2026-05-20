@@ -25,8 +25,7 @@ async function startBot() {
 
     if (qr) {
         console.log("📱 Escaneie o QR:");
-        qrcode.generate(qr, { small: true });
-    }
+        qrcode.generate(qr, { small: false });    }
 
     if (connection === "open") {
         console.log("✅ Bot conectado ao WhatsApp!");
