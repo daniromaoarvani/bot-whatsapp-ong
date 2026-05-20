@@ -15,25 +15,20 @@ async function startBot() {
 
     const sock = makeWASocket({
     auth: state,
-    printQRInTerminal: true
+    printQRInTerminal: false
 });
 
     sock.ev.on('creds.update', saveCreds);
 
-    sock.ev.on("connection.update", async ({ connection, lastDisconnect, qr }) => {
+    sock.ev.on("connection.update", ({ connection, qr }) => {
+    if (qr) {
+        console.log("ABRA ESSE LINK NO NAVEGADOR:");
+        console.log("https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=" + encodeURIComponent(qr));
+    }
 
     if (connection === "open") {
-        console.log("✅ Bot conectado ao WhatsApp!");
+        console.log("✅ Conectado!");
     }
-
-    if (connection === "close") {
-        console.log("❌ conexão fechada");
-
-        setTimeout(() => {
-            startBot();
-        }, 3000);
-    }
-
 });
 
     sock.ev.on('messages.upsert', async ({ messages }) => {
