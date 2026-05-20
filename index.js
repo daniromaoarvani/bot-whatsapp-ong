@@ -15,9 +15,17 @@ async function startBot() {
     const { state, saveCreds } = await useMultiFileAuthState('./auth');
 
     const sock = makeWASocket({
-    auth: state,
-    printQRInTerminal: true
-});
+        auth: state,
+        printQRInTerminal: false 
+    });
+
+    if (!sock.authState.creds.registered) {
+        const phoneNumber = "551124432955"; 
+        setTimeout(async () => {
+            const code = await sock.requestPairingCode(phoneNumber);
+            console.log(`✅ CÓDIGO DE PAREAMENTO: ${code}`);
+        }, 5000);
+    }
 
     sock.ev.on('creds.update', saveCreds);
 
@@ -128,5 +136,8 @@ Deixe seu nome e telefone que entraremos em contato.`
 }
 
 startBot();
+const PORT = process.env.PORT || 3000; 
 
-app.listen(3000, () => console.log('Servidor rodando'));
+app.listen(PORT, '0.0.0.0', () => {
+    console.log(`Servidor rodando na porta ${PORT}`);
+});
