@@ -1,5 +1,4 @@
 const express = require('express');
-const qrcode = require('qrcode');
 
 const {
     default: makeWASocket,
@@ -22,10 +21,6 @@ async function startBot() {
     sock.ev.on('creds.update', saveCreds);
 
     sock.ev.on("connection.update", async ({ connection, lastDisconnect, qr }) => {
-
-    if (qr) {
-        console.log("📱 Escaneie o QR:");
-        qrcode.generate(qr, { small: false });    }
 
     if (connection === "open") {
         console.log("✅ Bot conectado ao WhatsApp!");
